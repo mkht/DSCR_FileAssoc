@@ -12,19 +12,19 @@
 # RootModule = ''
 
 # このモジュールのバージョン番号です。
-ModuleVersion = '2.0.0'
+ModuleVersion = '0.7.4'
 
 # このモジュールを一意に識別するために使用される ID
 GUID = 'a293f246-e6f4-4bca-b6bc-633db9f5b38e'
 
 # このモジュールの作成者
-Author = 'maki'
+Author = 'mkht'
 
 # このモジュールの会社またはベンダー
 CompanyName = ''
 
 # このモジュールの著作権情報
-Copyright = '(c) 2016 mkht All rights reserved.'
+Copyright = '(c) 2017 mkht All rights reserved.'
 
 # このモジュールの機能の説明
 # Description = ''
@@ -51,7 +51,7 @@ VariablesToExport = '*'
 AliasesToExport = @()
 
 # このモジュールからエクスポートする DSC リソース
-# DscResourcesToExport = @()
+DscResourcesToExport = @('cFileAssoc')
 
 # このモジュールからエクスポートされたコマンドの既定のプレフィックス。既定のプレフィックスをオーバーライドする場合は、Import-Module -Prefix を使用します。
 # DefaultCommandPrefix = ''
