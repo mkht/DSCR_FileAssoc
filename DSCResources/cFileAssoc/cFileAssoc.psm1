@@ -177,11 +177,19 @@ function Get-FileAssoc {
         Icon = ''
     }
 
-    $GetFileType = & cmd.exe /c ("assoc {0} 2>null" -f $Extension)
-    foreach($Line in $GetFileType)
-    {
-        if($Line -match '='){
-            $Ret.FileType = $Line.Split("=")[1].Trim()
+    # ユーザ固有の関連付けがある場合はそちらを取得
+    $UserChoicePath = ("HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}\UserChoice" -f $Extension)
+    if((Test-Path $UserChoicePath) -and (Get-ItemProperty $UserChoicePath).ProgId){
+        $Ret.FileType = (Get-ItemProperty $UserChoicePath).ProgId
+    }
+    # なければシステム全体の関連付けを取得
+    else{
+        $GetFileType = & cmd.exe /c ("assoc {0} 2>null" -f $Extension)
+        foreach($Line in $GetFileType)
+        {
+            if($Line -match '='){
+                $Ret.FileType = $Line.Split("=")[1].Trim()
+            }
         }
     }
 
@@ -197,6 +205,7 @@ function Get-FileAssoc {
         $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $Ret.FileType))
         if($RegKey){
             $Ret.Icon = $RegKey.GetValue($null, $null, [RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $RegKey.Close()
         }
     }
     $Ret
@@ -224,6 +233,16 @@ function Set-FileAssoc {
         $Icon = [String]::Empty
     )
 
+    # ユーザ固有の関連付けは削除する (アクセス権の問題でトリッキーな消し方をする必要がある)
+    $UserChoicePath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}\UserChoice" -f $Extension)
+    if($RegKey = [Registry]::CurrentUser.OpenSubKey($UserChoicePath, [RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::ChangePermissions)){
+        $Acl = $RegKey.GetAccessControl()
+        $Acl.Access | ? {$_.AccessControlType -eq 'Deny'} | % { [void]$Acl.RemoveAccessRule($_) }
+        $RegKey.SetAccessControl($Acl)
+        $RegKey.Close()
+        [Registry]::CurrentUser.DeleteSubKeyTree($UserChoicePath, $false);
+    }
+
     # 拡張子とファイルタイプの紐付け
     $SetFileType = & cmd.exe /c ("assoc {0}={1}" -f $Extension, $FileType)
     if($FileType){
@@ -235,7 +254,10 @@ function Set-FileAssoc {
             New-Item -Path $Key -Force | Out-Null
         }
         $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType), $true)
-        $RegKey.SetValue("", $Icon, [RegistryValueKind]::ExpandString)
+        if($RegKey){
+            $RegKey.SetValue("", $Icon, [RegistryValueKind]::ExpandString)
+            $RegKey.Close()
+        }
     }
     #システムへの変更通知
     Update-FileAssoc
