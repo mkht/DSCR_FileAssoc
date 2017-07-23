@@ -1,29 +1,46 @@
 ﻿$output = 'C:\MOF'
 Import-Module DSCR_FileAssoc -force
 
+$configuraionData = @{
+    AllNodes =
+    @(
+        @{
+            NodeName = "*"
+            PSDscAllowPlainTextPassword = $true
+        },
+        @{
+            NodeName = "localhost"
+            Role = "test"
+        }
+    )
+}
+
 Configuration DSCR_FileAssoc_Sample
 {
+    param (
+        [PSCredential]$Credential = (Get-Credential)
+    )
     Import-DscResource -ModuleName DSCR_FileAssoc
     Node localhost
     {
-        cFileAssoc Txt2Notepad_Sample
+        cFileAssoc TxtWordpad_Sample
         {
             Ensure = "Present"
             Extension = ".txt"
-            Command = 'C:\WINDOWS\system32\NOTEPAD.EXE %1'
-            FileType = 'txtfile'
+            Command = '%ProgramFiles%\Windows NT\Accessories\WORDPAD.EXE %1'
             Icon = '%SystemRoot%\system32\imageres.dll,-102'
+            PsDscRunAsCredential = $Credential
         }
 
-        cFileAssoc Csv2NoAssoc_Sample
+        cFileAssoc CsvNoAssoc_Sample
         {
             Ensure = "Absent"
             Extension = ".csv"
+            PsDscRunAsCredential = $Credential
         }
     }
 }
 
-DSCR_FileAssoc_Sample -OutputPath $output
-#Test-DscConfiguration -Path $output -Verbose
-Start-DscConfiguration -Path  $output -Verbose -Wait -Force
-
+DSCR_FileAssoc_Sample -OutputPath $output -ConfigurationData $configuraionData -ErrorAction Stop
+Start-DscConfiguration -Path $output -Verbose -wait -force
+Remove-DscConfigurationDocument -Stage Current,Previous,Pending -Force
