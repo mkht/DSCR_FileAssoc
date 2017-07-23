@@ -1,4 +1,5 @@
-﻿
+﻿using namespace Microsoft.Win32
+
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
 function Get-TargetResource
@@ -154,7 +155,7 @@ function Set-TargetResource
         }
     }
 
-    Set-FileAssoc @Res    
+    Set-FileAssoc @Res
 } # end of Set-TargetResource
 
 
@@ -193,9 +194,9 @@ function Get-FileAssoc {
             }
         }
 
-        $RegKey = ("HKLM:\SOFTWARE\Classes\{0}\DefaultIcon" -f $Ret.FileType)
-        if(Test-Path $RegKey){
-            $Ret.Icon = Get-ItemProperty -Path $RegKey -Name '(default)'
+        $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $Ret.FileType))
+        if($RegKey){
+            $Ret.Icon = $RegKey.GetValue($null, $null, [RegistryValueOptions]::DoNotExpandEnvironmentNames)
         }
     }
     $Ret
@@ -233,7 +234,8 @@ function Set-FileAssoc {
         if(-not (Test-Path $Key)){
             New-Item -Path $Key -Force | Out-Null
         }
-        Set-ItemProperty -Path $Key -Name "(default)" -Value $Icon | Out-Null
+        $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType), $true)
+        $RegKey.SetValue("", $Icon, [RegistryValueKind]::ExpandString)
     }
     #システムへの変更通知
     Update-FileAssoc
