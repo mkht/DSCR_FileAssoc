@@ -234,13 +234,14 @@ function Set-FileAssoc {
     )
 
     # ユーザ固有の関連付けは削除する (アクセス権の問題でトリッキーな消し方をする必要がある)
+    $FileExtsPath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}" -f $Extension)
     $UserChoicePath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}\UserChoice" -f $Extension)
     if($RegKey = [Registry]::CurrentUser.OpenSubKey($UserChoicePath, [RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::ChangePermissions)){
         $Acl = $RegKey.GetAccessControl()
         $Acl.Access | ? {$_.AccessControlType -eq 'Deny'} | % { [void]$Acl.RemoveAccessRule($_) }
         $RegKey.SetAccessControl($Acl)
         $RegKey.Close()
-        [Registry]::CurrentUser.DeleteSubKeyTree($UserChoicePath, $false);
+        [Registry]::CurrentUser.DeleteSubKeyTree($FileExtsPath, $false);
     }
 
     # 拡張子とファイルタイプの紐付け
