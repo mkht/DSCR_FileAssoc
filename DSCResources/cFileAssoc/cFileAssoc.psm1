@@ -182,8 +182,8 @@ function Get-FileAssoc {
 
     # ユーザ固有の関連付けがある場合はそちらを取得
     $UserChoicePath = ("HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}\UserChoice" -f $Extension)
-    if ((Test-Path $UserChoicePath) -and (Get-ItemProperty $UserChoicePath).ProgId) {
-        $Ret.FileType = (Get-ItemProperty $UserChoicePath).ProgId
+    if ((Test-Path -LiteralPath $UserChoicePath) -and (Get-ItemProperty -LiteralPath $UserChoicePath).ProgId) {
+        $Ret.FileType = (Get-ItemProperty -LiteralPath $UserChoicePath).ProgId
     }
     # なければシステム全体の関連付けを取得
     else {
@@ -251,7 +251,7 @@ function Set-FileAssoc {
         $SetCommand = & cmd.exe /c ("ftype {0}={1} 2>null" -f $FileType, $Command.Replace('%', '^%'))    # Powershellではなくコマンドラインの動作仕様に引きずられるので%を^%にエスケープする必要あり
         # ファイルアイコンの設定
         $Key = ("HKLM:\SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType)
-        if (-not (Test-Path $Key)) {
+        if (-not (Test-Path -LiteralPath $Key)) {
             New-Item -Path $Key -Force | Out-Null
         }
         $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType), $true)
