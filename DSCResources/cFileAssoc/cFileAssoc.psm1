@@ -40,12 +40,14 @@ function Get-TargetResource {
     $GetRes.FileType = $GetAssoc.FileType
     $GetRes.Command = $GetAssoc.Command
     $GetRes.Icon = $GetAssoc.Icon
+
     if ($GetRes.Command -and $GetRes.FileType) {
         $GetRes.Ensure = 'Present'
     }
     else {
         $GetRes.Ensure = 'Absent'
     }
+
     $GetRes
 } # end of Get-TargetResource
 
@@ -80,25 +82,29 @@ function Test-TargetResource {
     $Ret = $true
 
     $CurrentState = Get-TargetResource -Ensure $Ensure -Extension $Extension
+    
     if ($Ensure -ne $CurrentState.Ensure) {
         # Not match Ensure state
         Write-Verbose ('Not match Ensure state. your desired "{0}" but current "{1}"' -f $Ensure, $CurrentState.Ensure)
         $Ret = $Ret -and $false
     }
+
     if ($Ensure -eq 'Present') {
-        if ($Command -ne $CurrentState.Command) {
+        if ($PSBoundParameters.Command -and ($Command -ne $CurrentState.Command)) {
             # Not match associated command
-            Write-Verbose ('Command attr is not match')
+            Write-Verbose ('Command attr is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.Command, $Command)
             $Ret = $Ret -and $false
         }
+    
         if ($PSBoundParameters.FileType -and ($FileType -ne $CurrentState.FileType)) {
             # Not match FileType (optional)
-            Write-Verbose ('FileType attr is not match')
+            Write-Verbose ('FileType attr is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.FileType, $FileType)
             $Ret = $Ret -and $false
         }
+    
         if ($PSBoundParameters.Icon -and ($Icon -ne $CurrentState.Icon)) {
             # Not match Icon (optional)
-            Write-Verbose ('Icon attr is not match')
+            Write-Verbose ('Icon attr is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.Icon, $Icon)
             $Ret = $Ret -and $false
         }
     }
@@ -135,32 +141,36 @@ function Set-TargetResource {
 
     if ($Ensure -eq 'Absent') {
         #関連付け削除
-        $Res = @{
-            Extension = $Extension
-            FileType  = ''
-            Command   = ''
-            Icon      = ''
-        }
+        Write-Verbose ('Your desired state is "Absent". Start trying to remove file association of "{0}"' -f $Extension)
+        Remove-FileAssoc -Extension $Extension
     }
     elseif ($Ensure -eq 'Present') {
         #関連付け登録
-        $Res = Get-FileAssoc -Extension $Extension
-        $Res.Command = $Command
+        Write-Verbose ('Your desired state is "Present". Start trying to associate file type of "{0}"' -f $Extension)
+
+        $Res = @{
+            Extension = $Extension
+        }
+        
         if ($PSBoundParameters.FileType) {
             #FileType指定あり -> 指定されたFileTypeを使う
+            Write-Verbose ('FileType: {0}' -f $FileType)
             $Res.FileType = $FileType
         }
-        elseif (-not $Res.FileType) {
+        elseif ($PSBoundParameters.Command) {
             #FileType未設定 & FileType指定なし -> 拡張子(ドット無)+file を使う eg).txt -> txtfile
-            $Res.FileType = ('{0}fiie' -f $Extension.TrimStart('.'))
+            Write-Verbose ('Command: {0}' -f $Command)
+            $Res.Command = $Command
         }
+
         # アイコン指定あり
         if ($PSBoundParameters.Icon) {
+            Write-Verbose ('Icon: {0}' -f $Icon)
             $Res.Icon = $Icon
         }
-    }
 
-    Set-FileAssoc @Res
+        Set-FileAssoc @Res
+    }
 } # end of Set-TargetResource
 
 # ////////////////////////////////////////////////////////////////////////////////////////
@@ -215,40 +225,50 @@ function Get-FileAssoc {
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
 function Set-FileAssoc {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'FileType')]
     Param(
         [Parameter(Mandatory)]
         [string]
         $Extension,
 
-        [Parameter()]
+        [Parameter(Mandatory, ParameterSetName = 'FileType')]
         [string]
-        $FileType = [String]::Empty,
+        $FileType,
+
+        [Parameter(Mandatory, ParameterSetName = 'Command')]
+        [string]
+        $Command,
 
         [Parameter()]
         [string]
-        $Command = [String]::Empty,
-
-        [Parameter()]
-        [string]
-        $Icon = [String]::Empty
+        $Icon
     )
 
     # ユーザ固有の関連付けは削除する (アクセス権の問題でトリッキーな消し方をする必要がある)
-    $UserChoicePath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}\UserChoice" -f $Extension)
-    if ($RegKey = [Registry]::CurrentUser.OpenSubKey($UserChoicePath, [RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::ChangePermissions)) {
+    $UserChoicePath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}" -f $Extension)
+    if ($RegKey = [Registry]::CurrentUser.OpenSubKey(($UserChoicePath + '\UserChoice'), [RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::ChangePermissions)) {
         $Acl = $RegKey.GetAccessControl()
-        $Acl.Access | ? {$_.AccessControlType -eq 'Deny'} | % { [void]$Acl.RemoveAccessRule($_) }
+        $Acl.Access | Where-Object {$_.AccessControlType -eq 'Deny'} | ForEach-Object { [void]$Acl.RemoveAccessRule($_) }
         $RegKey.SetAccessControl($Acl)
         $RegKey.Close()
-        [Registry]::CurrentUser.DeleteSubKeyTree($UserChoicePath, $false);
+    }
+    [Registry]::CurrentUser.DeleteSubKeyTree($UserChoicePath, $false);
+
+
+    if ($PSCmdlet.ParameterSetName -eq 'Command') {
+        $FileType = $Extension.TrimStart('.') + 'file'
     }
 
     # 拡張子とファイルタイプの紐付け
     $SetFileType = & cmd.exe /c ("assoc {0}={1}" -f $Extension, $FileType)
-    if ($FileType) {
+
+    if ($PSCmdlet.ParameterSetName -eq 'Command') {
         # ファイルタイプと実行コマンドの紐付け
         $SetCommand = & cmd.exe /c ("ftype {0}={1} 2>null" -f $FileType, $Command.Replace('%', '^%'))    # Powershellではなくコマンドラインの動作仕様に引きずられるので%を^%にエスケープする必要あり
+        
+    }
+
+    if ($PSBoundParameters.ContainsKey('Icon')) {
         # ファイルアイコンの設定
         $Key = ("HKLM:\SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType)
         if (-not (Test-Path -LiteralPath $Key)) {
@@ -260,15 +280,55 @@ function Set-FileAssoc {
             $RegKey.Close()
         }
     }
+    
     #システムへの変更通知
     Update-FileAssoc
 }
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////
+# ////////////////////////////////////////////////////////////////////////////////////////
+function Remove-FileAssoc {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory)]
+        [string]
+        $Extension
+    )
+
+    # ユーザ固有の関連付けを削除する (アクセス権の問題でトリッキーな消し方をする必要がある)
+    $UserChoicePath = ("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{0}" -f $Extension)
+    if ($RegKey = [Registry]::CurrentUser.OpenSubKey(($UserChoicePath + '\UserChoice'), [RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::ChangePermissions)) {
+        $Acl = $RegKey.GetAccessControl()
+        $Acl.Access | Where-Object {$_.AccessControlType -eq 'Deny'} | ForEach-Object { [void]$Acl.RemoveAccessRule($_) }
+        $RegKey.SetAccessControl($Acl)
+        $RegKey.Close()
+    }
+    [Registry]::CurrentUser.DeleteSubKeyTree($UserChoicePath, $false);
+
+    # 関連付けを削除する(カレントユーザ)
+    $Path1 = ('HKCU:\Software\Classes\{0}' -f $Extension)
+    $Path2 = ('HKCU:\Software\Classes\{0}_auto_file' -f ($Extension.Replace('.', [string]::Empty)))
+    if (Test-Path -LiteralPath $Path1) {
+        Remove-Item -LiteralPath ('HKCU:\Software\Classes\{0}' -f $Extension) -Recurse -Force
+    }
+    if (Test-Path -LiteralPath $Path2) {
+        Remove-Item -LiteralPath ('HKCU:\Software\Classes\{0}_auto_file' -f ($Extension.Replace('.', [string]::Empty))) -Recurse -Force
+    }
+
+    # 拡張子とファイルタイプの紐付けを外す
+    Start-Process -FilePath 'cmd.exe' -ArgumentList '/c "assoc .csv="' -Wait -NoNewWindow
+    
+    #システムへの変更通知
+    Update-FileAssoc
+}
+
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 # 拡張子登録変更を反映させるためのWin32APIコール
 # https://msdn.microsoft.com/ja-jp/library/windows/desktop/bb762118(v=vs.85).aspx
 # ////////////////////////////////////////////////////////////////////////////////////////
-Function Update-FileAssoc {
+function Update-FileAssoc {
     $CSharp = @'
 private const int SHCNE_ASSOCCHANGED = 0x08000000;
 
