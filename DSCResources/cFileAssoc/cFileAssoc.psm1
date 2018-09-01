@@ -15,7 +15,7 @@ function Get-TargetResource {
 
         [Parameter()]
         [string]
-        $ProgId
+        $FileType
     )
 
     Assert-PsDscRunAsUser
@@ -26,9 +26,9 @@ function Get-TargetResource {
     }
 
     $GetAssoc = Get-FileAssoc | Where-Object {$Extension -eq $_.Extension} | Select-Object -First 1
-    $GetRes.ProgId = $GetAssoc.ProgId
+    $GetRes.FileType = $GetAssoc.ProgId
 
-    if ($GetRes.ProgId) {
+    if ($GetRes.FileType) {
         $GetRes.Ensure = 'Present'
     }
     else {
@@ -56,7 +56,7 @@ function Test-TargetResource {
 
         [Parameter()]
         [string]
-        $ProgId
+        $FileType
     )
 
     Assert-PsDscRunAsUser
@@ -72,9 +72,9 @@ function Test-TargetResource {
     }
 
     if ($Ensure -eq 'Present') {
-        if ($PSBoundParameters.ProgId -and ($ProgId -ne $CurrentState.ProgId)) {
-            # Not match associated ProgId
-            Write-Verbose ('Associated ProgId is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.ProgId, $ProgId)
+        if ($PSBoundParameters.FileType -and ($FileType -ne $CurrentState.FileType)) {
+            # Not match associated FileType
+            Write-Verbose ('Associated FileType is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.FileType, $FileType)
             $Ret = $Ret -and $false
         }
     }
@@ -99,7 +99,7 @@ function Set-TargetResource {
 
         [Parameter()]
         [string]
-        $ProgId
+        $FileType
     )
 
     Assert-PsDscRunAsUser
@@ -113,12 +113,12 @@ function Set-TargetResource {
         #Associate file type
         Write-Verbose ('Your desired state is "Present". Start trying to associate file type of "{0}"' -f $Extension)
 
-        if (-not $PSBoundParameters.ProgId) {
-            Write-Error ('ProgId is not specified.')
+        if (-not $PSBoundParameters.FileType) {
+            Write-Error ('FileType is not specified.')
             return
         }
 
-        Set-FileAssoc -Extension $Extension -ProgId $ProgId
+        Set-FileAssoc -Extension $Extension -ProgId $FileType
     }
 } # end of Set-TargetResource
 

@@ -27,7 +27,7 @@ Configuration DSCR_FileAssoc_Sample
         {
             Ensure = "Present"
             Extension = ".pdf"
-            ProgId = 'AcroExch.Document.DC'
+            FileType = 'AcroExch.Document.DC'
             PsDscRunAsCredential = $Credential
         }
     }
