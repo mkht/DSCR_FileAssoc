@@ -4,7 +4,5 @@ class cFileAssoc : OMI_BaseResource
 {
     [Write, ValueMap{"Present","Absent"}, Values{"Present","Absent"}] String Ensure;
     [Key] String Extension;
-    [Write] String Command;
-    [Write] String FileType;
-    [Write] String Icon;
+    [Write] String ProgId;
 };
