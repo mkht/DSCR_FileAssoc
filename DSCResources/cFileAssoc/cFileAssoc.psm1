@@ -155,11 +155,11 @@ function Get-FileAssoc {
 function Set-FileAssoc {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory = $true)]
         [string]
         $Extension,
 
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory = $true)]
         [string]
         $ProgId
     )
@@ -180,7 +180,7 @@ function Set-FileAssoc {
 function Remove-FileAssoc {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory = $true)]
         [string]
         $Extension
     )
