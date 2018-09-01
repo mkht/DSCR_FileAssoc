@@ -1,4 +1,4 @@
-﻿$output = 'C:\MOF'
+$output = 'C:\MOF'
 Import-Module DSCR_FileAssoc -force
 
 $configuraionData = @{
@@ -23,19 +23,11 @@ Configuration DSCR_FileAssoc_Sample
     Import-DscResource -ModuleName DSCR_FileAssoc
     Node localhost
     {
-        cFileAssoc TxtWordpad_Sample
+        cFileAssoc example
         {
             Ensure = "Present"
-            Extension = ".txt"
-            Command = '%ProgramFiles%\Windows NT\Accessories\WORDPAD.EXE %1'
-            Icon = '%SystemRoot%\system32\imageres.dll,-102'
-            PsDscRunAsCredential = $Credential
-        }
-
-        cFileAssoc CsvNoAssoc_Sample
-        {
-            Ensure = "Absent"
-            Extension = ".csv"
+            Extension = ".pdf"
+            ProgId = 'AcroExch.Document.DC'
             PsDscRunAsCredential = $Credential
         }
     }
