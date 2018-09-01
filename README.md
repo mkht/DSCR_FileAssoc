@@ -75,3 +75,8 @@ Configuration Example2
 
 ### 0.8.0
 Initial pre-release for public.
+
+
+----
+## Library
+DSCR_FileAssoc uses *SetUserFTA* by Christoph Kolbicz - https://kolbi.cz, 2018
