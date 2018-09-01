@@ -9,11 +9,11 @@ function Get-TargetResource {
         [string]
         $Ensure = 'Present',
 
-        [parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true)]
         [string]
         $Extension,
 
-        [parameter()]
+        [Parameter()]
         [string]
         $ProgId
     )
@@ -50,11 +50,11 @@ function Test-TargetResource {
         [string]
         $Ensure = 'Present',
 
-        [parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true)]
         [string]
         $Extension,
 
-        [parameter()]
+        [Parameter()]
         [string]
         $ProgId
     )
@@ -64,7 +64,7 @@ function Test-TargetResource {
     $Ret = $true
 
     $CurrentState = Get-TargetResource -Ensure $Ensure -Extension $Extension
-    
+
     if ($Ensure -ne $CurrentState.Ensure) {
         # Not match Ensure state
         Write-Verbose ('Not match Ensure state. your desired "{0}" but current "{1}"' -f $Ensure, $CurrentState.Ensure)
@@ -93,11 +93,11 @@ function Set-TargetResource {
         [string]
         $Ensure = 'Present',
 
-        [parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true)]
         [string]
         $Extension,
 
-        [parameter()]
+        [Parameter()]
         [string]
         $ProgId
     )
@@ -112,12 +112,12 @@ function Set-TargetResource {
     elseif ($Ensure -eq 'Present') {
         #Associate file type
         Write-Verbose ('Your desired state is "Present". Start trying to associate file type of "{0}"' -f $Extension)
-        
+
         if (-not $PSBoundParameters.ProgId) {
             Write-Error ('ProgId is not specified.')
             return
         }
-        
+
         Set-FileAssoc -Extension $Extension -ProgId $ProgId
     }
 } # end of Set-TargetResource
