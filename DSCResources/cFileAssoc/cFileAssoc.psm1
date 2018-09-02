@@ -1,3 +1,5 @@
+using namespace Microsoft.Win32
+
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
 function Get-TargetResource {
@@ -15,7 +17,15 @@ function Get-TargetResource {
 
         [Parameter()]
         [string]
-        $FileType
+        $FileType,
+
+        [Parameter()]
+        [string]
+        $Command,
+
+        [Parameter()]
+        [string]
+        $Icon
     )
 
     Assert-PsDscRunAsUser
@@ -25,8 +35,10 @@ function Get-TargetResource {
         Extension = $Extension
     }
 
-    $GetAssoc = Get-FileAssoc | Where-Object {$Extension -eq $_.Extension} | Select-Object -First 1
+    $GetAssoc = Get-FileAssoc -Extension $Extension
     $GetRes.FileType = $GetAssoc.ProgId
+    $GetRes.Command = $GetAssoc.Command
+    $GetRes.Icon = $GetAssoc.Icon
 
     if ($GetRes.FileType) {
         $GetRes.Ensure = 'Present'
@@ -56,7 +68,15 @@ function Test-TargetResource {
 
         [Parameter()]
         [string]
-        $FileType
+        $FileType,
+
+        [Parameter()]
+        [string]
+        $Command,
+
+        [Parameter()]
+        [string]
+        $Icon
     )
 
     Assert-PsDscRunAsUser
@@ -75,6 +95,18 @@ function Test-TargetResource {
         if ($PSBoundParameters.FileType -and ($FileType -ne $CurrentState.FileType)) {
             # Not match associated FileType
             Write-Verbose ('Associated FileType is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.FileType, $FileType)
+            $Ret = $Ret -and $false
+        }
+
+        if ($PSBoundParameters.Command -and ($Command -ne $CurrentState.Command)) {
+            # Not match associated command (optional)
+            Write-Verbose ('Command attr is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.Command, $Command)
+            $Ret = $Ret -and $false
+        }
+
+        if ($PSBoundParameters.Icon -and ($Icon -ne $CurrentState.Icon)) {
+            # Not match Icon (optional)
+            Write-Verbose ('Icon attr is not match (Current:"{0}" / Desired:"{1}")' -f $CurrentState.Icon, $Icon)
             $Ret = $Ret -and $false
         }
     }
@@ -99,7 +131,15 @@ function Set-TargetResource {
 
         [Parameter()]
         [string]
-        $FileType
+        $FileType,
+
+        [Parameter()]
+        [string]
+        $Command,
+
+        [Parameter()]
+        [string]
+        $Icon
     )
 
     Assert-PsDscRunAsUser
@@ -118,7 +158,41 @@ function Set-TargetResource {
             return
         }
 
-        Set-FileAssoc -Extension $Extension -ProgId $FileType
+        $GetAssoc = Get-FileAssoc -Extension $Extension
+
+        if ($FileType -ne $GetAssoc.FileType) {
+            Write-Verbose ('Associate {0} to {1}' -f $Extension, $FileType)
+            Set-FileAssoc -Extension $Extension -ProgId $FileType
+        }
+
+        if ($PSBoundParameters.Command -and ($Command -ne $GetAssoc.Command)) {
+            $paramHash = @{
+                FileType = $FileType
+                Command  = $Command
+            }
+
+            if ($PSBoundParameters.Icon) {
+                $paramHash.Icon = $Icon
+            }
+        }
+
+        if ($PSBoundParameters.Icon -and ($Icon -ne $GetAssoc.Icon)) {
+            if ($null -eq $paramHash) {
+                $paramHash = @{
+                    FileType = $FileType
+                    Command  = $Command
+                    Icon     = $Icon
+                }
+            }
+            else {
+                $paramHash.Icon = $Icon
+            }
+        }
+
+        if ($paramHash.Command) {
+            Write-Verbose ('Create FileType {0}' -f $FileType)
+            New-FileType @paramHash
+        }
     }
 } # end of Set-TargetResource
 
@@ -140,14 +214,39 @@ function Get-FileAssoc {
         throw
     }
 
+    $Ret = @{
+        Extension = $Extension
+        ProgId    = $null
+        Command   = $null
+        Icon      = $null
+    }
+
     $allUserFTAList = ConvertFrom-Csv (& $SetUserFTA get) -Header ('Extension', 'ProgId')
 
     if (-not $allUserFTAList) {
         throw 'Failed to get user file type associations.'
     }
-    else {
-        $allUserFTAList
+
+    $fType = $allUserFTAList | Where-Object {$Extension -eq $_.Extension} | Select-Object -First 1
+
+    if ($fType.ProgId) {
+        $Ret.ProgId = $fType.ProgId
+
+        $GetCommand = & cmd.exe /c ("ftype {0} 2>null" -f $Ret.ProgId)
+        foreach ($Line in $GetCommand) {
+            if ($Line -match '=') {
+                $Ret.Command = $Line.Split("=")[1].Trim()
+            }
+        }
+    
+        $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $Ret.ProgId))
+        if ($RegKey) {
+            $Ret.Icon = $RegKey.GetValue($null, $null, [RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $RegKey.Close()
+        }
     }
+
+    $Ret
 }
 
 # ////////////////////////////////////////////////////////////////////////////////////////
@@ -193,6 +292,40 @@ function Remove-FileAssoc {
     }
 
     & $SetUserFTA del $Extension
+}
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////
+# ////////////////////////////////////////////////////////////////////////////////////////
+function New-FileType {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]
+        $FileType,
+
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Command,
+
+        [Parameter()]
+        [string]
+        $Icon
+    )
+
+    $SetCommand = & cmd.exe /c ("ftype {0}={1} 2>null" -f $FileType, $Command)
+
+    if ($PSBoundParameters.ContainsKey('Icon')) {
+        $Key = ("HKLM:\SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType)
+        if (-not (Test-Path -LiteralPath $Key)) {
+            New-Item -Path $Key -Force | Out-Null
+        }
+        $RegKey = [Registry]::LocalMachine.OpenSubKey(("SOFTWARE\Classes\{0}\DefaultIcon" -f $FileType), $true)
+        if ($RegKey) {
+            $RegKey.SetValue("", $Icon, [RegistryValueKind]::ExpandString)
+            $RegKey.Close()
+        }
+    }
 }
 
 

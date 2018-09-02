@@ -32,6 +32,12 @@ DSCR_FileAssoc only supports these environments
     + The FileType of the desired association.  
     You can check the existing FileType by executing the `ftype` command.
 
++ [string] **Command** (Write):
+    + The command of the desired association.
+
++ [string] **Icon** (Write):
+    + The path of Icon resource for file type.
+
 + [PSCredential] **PsDscRunAsCredential** (Require):
     + The user credential to configure.
 
@@ -69,7 +75,6 @@ Configuration Example2
 ----
 ## ChangeLog
 ### Not Released
-+ The parameter `Command` and `Icon` is deprecated. (We plan to re-implement in the future)
 + The parameter `PsDscRunAsCredential` is now mandatory.
 + Windows 7 is no longer supported.
 
