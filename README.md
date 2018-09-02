@@ -75,8 +75,9 @@ Configuration Example2
 ----
 ## ChangeLog
 ### Not Released
-+ The parameter `PsDscRunAsCredential` is now mandatory.
++ Improve compatibility for Windows 10
 + Windows 7 is no longer supported.
++ The parameter `PsDscRunAsCredential` is now mandatory.
 
 ### 0.8.0
 Initial pre-release for public.
