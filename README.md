@@ -74,6 +74,9 @@ Configuration Example2
 
 ----
 ## ChangeLog
+### 1.0.1
++ Fixed issue that the "not valid" error was occurred.
+
 ### 1.0.0
 + Improve compatibility for Windows 10
 + Windows 7 is no longer supported.

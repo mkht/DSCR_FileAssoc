@@ -336,7 +336,7 @@ function Get-SetUserFTAPath {
     [OutputType([string])]
     param()
 
-    $private:exeHash = '2EE75BEB17B6755DB6138E84E91CD72D06A95DDAE8A14EFF4216010FD1D0973D'
+    $private:exeHash = '791DC39F7BD059226364BB05CF5F8E1DD7CCFDAA33A1574F9DC821B2620991C2'
     $exe = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) '\Libs\SetUserFTA\SetUserFTA.exe'
 
     if (-not (Test-Path -LiteralPath $exe)) {
